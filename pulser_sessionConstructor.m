@@ -6,8 +6,7 @@
 %%  Daq Configure  (nidaqs can do analog out, analog in, and often counters. Matlab session does not allow digital outs.)
 
 if pulserSession.ni.daqToggle
-    pulser_daq_session = daq.createSession;
-    pulser_daq_session.Rate = pulserSession.rate;
+	import dabs.ni.daqmx.*
 
 % You might want multiple analog input and output cards so we have to loop
 % the adds to span through all the cards in the configuration file. 
