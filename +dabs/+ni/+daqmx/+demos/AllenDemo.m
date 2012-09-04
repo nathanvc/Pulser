@@ -9,7 +9,6 @@ AOChan = 0; %Must be 1 channel
 sampleRate = 80000; %Hz
 updatePeriod = 0.2; %s
 acqPeriod = 10;
-cad.data=[];
 %%%%%%%%%%%%%%%%%%%%%%
 
 import dabs.ni.daqmx.*
@@ -84,9 +83,7 @@ hTask.start();
        disp('Acquisition Done!');      
       
        delete([hTask hAOTask]);        
-    end
-    cad.data=[cad.data inData];    
-
+    end 
 end
 
 

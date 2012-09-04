@@ -13,14 +13,14 @@ pulserSession.ni.rate = 10000;
 % Here we set the cards you want to use ('Dev1', 'Dev2', etc.). 
 % In addition, you need to set how many analog inputs and outputs you want to use (not how many you could use) for each card. 
 % Each block here needs a vector (syntax is  like cards=['Dev1' 'Dev2'] and count=[4 8]). 
-pulserSession.ni.daqToggle=0;      % 0 means no daqs, 1 means use daqs
+pulserSession.ni.daqToggle=1;      % 0 means no daqs, 1 means use daqs
 
 %% ----- Analog Out
 %
 
-pulserSession.ni.aOut.devIDs={'Dev1','Dev1','Dev1','Dev1'};  % I default to the cell array approach even for one card for maximum flexibility. 
-pulserSession.ni.aOut.names={'Piezo','Blue Laser','Yellow Laser','output4'};
-pulserSession.ni.aOut.channels={0 1 2 3};  % could be numeric arrays in the cells.
+pulserSession.ni.aOut.devIDs='Dev1';  % I default to the cell array approach even for one card for maximum flexibility. 
+pulserSession.ni.aOut.names='Piezo';
+pulserSession.ni.aOut.channels=1;  % could be numeric arrays in the cells.
 % This is the default scheme the @Task class wants the devIDs to be in.
 % From Task Class:
 %   deviceNames: String or string cell array specifying names of device on which channel(s) should be added, e.g. 'Dev1'. If a cell array, chanIDs must also be a cell array (of equal length).
@@ -29,13 +29,14 @@ pulserSession.ni.aOut.channels={0 1 2 3};  % could be numeric arrays in the cell
 
 %% ----- Analog In
 % 
-pulserSession.ni.aIn.names={'Air','Land','Sea','input4'};
-pulserSession.ni.aIn.devIDs={'Dev1','Dev1','Dev1','Dev1'}; 
+pulserSession.ni.aIn.names='Air';
+pulserSession.ni.aIn.devIDs='Dev1'; 
+pulserSession.ni.aIn.channels=1;
 
 %% ----- Digital Out
 %
-pulserSession.ni.digOut.Names={'Fiber Launch Shutter'};
-pulserSession.ni.digOut.devIDs={'Dev1'};  
+pulserSession.ni.digOut.Names={};
+pulserSession.ni.digOut.devIDs={};  
 
 %   deviceNames: String or string cell array specifying names of device on which channel(s) should be added, e.g. 'Dev1'. If a cell array, chanIDs must also be a cell array (of equal length).
 %   chanIDs: A string identifying port and/or line IDs for this Channel, e.g. 'port0','port0/line0:1', or 'line0:15'. In the case of multiple deviceNames (a multi-device Task), a cell array of such strings
@@ -53,10 +54,11 @@ pulserSession.ni.digOut.devIDs={'Dev1'};
 %% ----- Optical Encoders  (optical mouse chips connected to arduinos; dx and dys are streamed over serial)
 %
 
-pulserSession.opticalEncoder.encoderToggle=1;
+pulserSession.opticalEncoder.encoderToggle=0;
 pulserSession.opticalEncoder.count=1;
 pulserSession.opticalEncoder.baudRates=(38400);
-pulserSession.opticalEncoder.serialPort=['/dev/tty.usbmodem1a161']  % You can get this from the arduino ide, if you have a tough time finding it.
+pulserSession.opticalEncoder.serialPort={'/dev/tty.usbmodem1a161'};  % You can get this from the arduino ide, if you have a tough time finding it.
 
-
+%% Graphing Stuff
+pulserSession.graphing.graphData=true;
 

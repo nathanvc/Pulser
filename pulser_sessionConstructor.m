@@ -10,28 +10,41 @@
 
 if pulserSession.ni.daqToggle
 	import dabs.ni.daqmx.*
+    %########## Put This Shit Somewhere Else !!!!!  ##########
+    trainLength=10;
+    sampleRate=20000;
+    possibleHandlingModes={'DAQmx_Val_FiniteSamps','DAQmx_Val_ContSamps','DAQmx_Val_HWTimedSinglePoint'};
+    
+    % Sometimes continuous (infinite acquistion) is desired. This will catch the mode to select. 
+    if isfinite(trainLength)
+        modeToUse=1;
+    else
+        modeToUse=2;
+    end
+    %############################################################
+
   
-	% I need to count channels.     
-	%function chanObjs = createAOVoltageChan(obj,deviceNames,chanIDs,chanNames,minVal,maxVal,units,customScaleName)
-	if numel(pulserSession.aOut.devIDs > 0)
-		pulserSession.aOut.task=Task('pulserAO')  %Create a task object; needs a string identifier.
+	if length(pulserSession.ni.aOut.channels) > 0;
+		pulserSession.aOut.task=Task('analogOut');  %Create a task object; needs a string identifier.
 		pulserSession.aOut.task.createAOVoltageChan(pulserSession.ni.aOut.devIDs,pulserSession.ni.aOut.channels,pulserSession.ni.aOut.names,-10,10);
+        pulserSession.aIn.task.cfgSampClkTiming(sampleRate,possibleHandlingModes(modeToUse), trainLength*sampleRate);
     end
     
-    if numel(pulserSession.ni.aIn.names > 0)
+    if length(pulserSession.ni.aIn.channels) > 0;
         for i=1:numel(pulserSession.ni.aIn.names)
-			pulserSession.aIn.task=Task('pulserAI')  %Create a task object; needs a string identifier.
+			pulserSession.aIn.task=Task('analogIn');  %Create a task object; needs a string identifier.
 			pulserSession.aIn.task.createAIVoltageChan(pulserSession.ni.aIn.devIDs,pulserSession.ni.aIn.channels,pulserSession.ni.aIn.names,-10,10);
+            pulserSession.aIn.task.cfgSampClkTiming(sampleRate,possibleHandlingModes(modeToUse), trainLength*sampleRate);
         end
     end
 	
 	% function chanObj = createDOChan(obj,deviceNames,chanIDs,chanNames,lineGrouping)
-    if numel(pulserSession.ni.digOut.names > 0)
-        for i=1:numel(pulserSession.ni.digOut.names)
-			pulserSession.digOut.task=Task('pulserDigOut')  %Create a task object; needs a string identifier.
-			pulserSession.digOut.task.createDOChan(pulserSession.ni.digOut.devIDs,pulserSession.ni.digOut.channels,pulserSession.ni.digOut.names);
-        end
-    end
+%     if length(pulserSession.ni.digOut.channels) > 0
+%         for i=1:numel(pulserSession.ni.digOut.names)
+% 			pulserSession.digOut.task=Task('pulserDigOut');  %Create a task object; needs a string identifier.
+% 			pulserSession.digOut.task.createDOChan(pulserSession.ni.digOut.devIDs,pulserSession.ni.digOut.channels,pulserSession.ni.digOut.names);
+%         end
+%     end
     
 %    if numel(pulserSession.ni.counterCount > 0)
 %        for i=1,numel(pulserSession.ni.counterCount)

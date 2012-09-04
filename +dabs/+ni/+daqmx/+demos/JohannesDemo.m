@@ -39,7 +39,6 @@ hTask.start();
         
         %Compute difference between input chans
         meanDifference = mean(inData(:,2)-inData(:,1));
-        cadData=[cadData(:,:) inData(:,:)];
         
         %Output difference value on D/A channel
         hAOTask.writeAnalogData(meanDifference);

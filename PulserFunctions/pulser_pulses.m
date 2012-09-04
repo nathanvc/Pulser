@@ -1,4 +1,4 @@
-function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,baselineTime,baselineValue,numReps,interTrainInterval,sRate)
+function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,baselineTime,baselineValue,numReps,interTrainInterval,sRate,acquisitionTime)
 
 % Pulser Pulse 'Class'
 % 
@@ -21,13 +21,15 @@ end
 % inter-train interval, then we replicate it n-times and shave off the last
 % set of zeros.
 if numReps > 1
-    pulseTrain=padarray(pulseTrain,interTrainInterval/dt,baselineValue,'post');
+    pulseTrain=padarray(pulseTrain',interTrainInterval/dt,baselineValue,'post');
     pulseTrain=repmat(pulseTrain,numReps,1); 
     pulseTrain=pulseTrain(1:length(pulseTrain)-interTrainInterval/dt);
 else
+    pulseTrain=pulseTrain';  %TODO: This is stupid.
 end
 
-% Lastly we need to add some baseline by padding the begining with zeros
+% Lastly we need to add the baseline by padding train's begining and end with the baseline values for a length determined by the desired acquisition time.
 pulseTrain=padarray(pulseTrain,baselineTime/dt,baselineValue,'pre');
+pulseTrain=padarray(pulseTrain,(acquisitionTime/dt)-length(pulseTrain),baselineValue,'post');
 
 out = pulseTrain;

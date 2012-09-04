@@ -1,4 +1,4 @@
-function out = pulser_ramp(amplitude,rampSpeed,baselineTime,baselineValue,numReps,interTrainInterval,sRate)
+function out = pulser_ramp(amplitude,rampSpeed,baselineTime,baselineValue,numReps,interTrainInterval,sRate,acquisitionTime)
 
 % Pulser Ramp 'Class'
 % 
@@ -26,7 +26,8 @@ if numReps > 1
 else
 end
 
-% Lastly we need to add some baseline by padding the begining with zeros
+% Lastly we need to add the baseline by padding ramp's begining and end with the baseline values for a length determined by the desired acquisition time.
 pulseTrain=padarray(pulseTrain,baselineTime/dt,baselineValue,'pre');
+pulseTrain=padarray(pulseTrain,(acquisitionTime/dt)-length(pulseTrain),baselineValue,'post');
 
 out = pulseTrain;
