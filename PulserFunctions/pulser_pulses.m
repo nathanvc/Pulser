@@ -29,7 +29,7 @@ else
 end
 
 % Lastly we need to add the baseline by padding train's begining and end with the baseline values for a length determined by the desired acquisition time.
-pulseTrain=padarray(pulseTrain,baselineTime/dt,baselineValue,'pre');
-pulseTrain=padarray(pulseTrain,(acquisitionTime/dt)-length(pulseTrain),baselineValue,'post');
+pulseTrain=padarray(pulseTrain,ceil(baselineTime/dt),baselineValue,'pre');
+pulseTrain=padarray(pulseTrain,ceil((acquisitionTime/dt)-length(pulseTrain)),baselineValue,'post');
 
 out = pulseTrain;
