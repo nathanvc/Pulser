@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,baselineTime,baselineValue,numReps,interTrainInterval,sRate)
-=======
 function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,baselineTime,baselineValue,numReps,interTrainInterval,sRate,acquisitionTime)
->>>>>>> nimex
 
 % Pulser Pulse 'Class'
 % 
@@ -25,16 +21,6 @@ end
 % inter-train interval, then we replicate it n-times and shave off the last
 % set of zeros.
 if numReps > 1
-<<<<<<< HEAD
-    pulseTrain=padarray(pulseTrain,interTrainInterval/dt,baselineValue,'post');
-    pulseTrain=repmat(pulseTrain,numReps,1); 
-    pulseTrain=pulseTrain(1:length(pulseTrain)-interTrainInterval/dt);
-else
-end
-
-% Lastly we need to add some baseline by padding the begining with zeros
-pulseTrain=padarray(pulseTrain,baselineTime/dt,baselineValue,'pre');
-=======
     pulseTrain=padarray(pulseTrain',interTrainInterval/dt,baselineValue,'post');
     pulseTrain=repmat(pulseTrain,numReps,1); 
     pulseTrain=pulseTrain(1:length(pulseTrain)-interTrainInterval/dt);
@@ -45,6 +31,5 @@ end
 % Lastly we need to add the baseline by padding train's begining and end with the baseline values for a length determined by the desired acquisition time.
 pulseTrain=padarray(pulseTrain,ceil(baselineTime/dt),baselineValue,'pre');
 pulseTrain=padarray(pulseTrain,ceil((acquisitionTime/dt)-length(pulseTrain)),baselineValue,'post');
->>>>>>> nimex
 
 out = pulseTrain;

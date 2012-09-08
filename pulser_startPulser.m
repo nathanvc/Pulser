@@ -35,8 +35,8 @@ syncError=0;
 %% Creates analog output trains, and configures input/output.
 import dabs.ni.daqmx.*
 
-% hTrigger = Task('Trigger Task');
-% hTrigger.createDOChan('Dev1','line0');
+pTrigger = Task('Trigger Task');
+pTrigger.createDOChan('Dev1','line6');
 
 %%%%% Set up the tasks. 
 pInputTask = Task('pulser in');
@@ -112,12 +112,15 @@ pDigOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqT
 %(Either the output is a couple of ms early because of matlab execution delays (but they both finish at the same time) or the cpu timing is crudy, using a self trigger would be a good test.
 
 tic
+pTrigger.writeDigitalData(logical([zeros(1,.002*sampleRate);ones(1,.002*sampleRate);zeros(1,.002*sampleRate)]),inf,true); 
 pDigOutputTask.writeDigitalData(dOutData,inf,true);
 pOutputTask.writeAnalogData(aOutData,inf,true);
 outData=pInputTask.readAnalogData(acqTime*sampleRate,'scaled',inf);
+pTrigger.writeDigitalData(logical([0;1;0]),inf,true); 
 
 
 pInputTask.clear();
 pOutputTask.clear();
 pDigOutputTask.clear();
 pCntrTask.clear();
+pTrigger.clear();
