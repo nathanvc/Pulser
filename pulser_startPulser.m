@@ -1,98 +1,165 @@
 function [outData]=pulser_startPulser()
 
-%%%%These Should Be Arguments Passed From a Config File%%%%
-AIDevice = 'Dev1';
-AIChans = [0 1 3];
-AODevice = 'Dev1';
-AOChan = 0:1; 
-DODevice='Dev1';
-DOChans='line2';
+%% Hardware Configuration  (ideally this would be done elsewhere using a rig and/or user specific configuration file)
+% Note: Pulser uses counter0 to time digital i/o. 
+% TODO: Add channel labels, for GUI/book keeping purposes.
+% TODO: Should add a save/load funtion.
+AIDevice = 'Dev1';			% You can pass multiple devices via a cell-array {'Dev1','Dev2'}.
+AIChans = [0 1 3 4];		% Numerical row vector. Arguments are just the channel number on the board so 0 is valid. 
+AODevice = 'Dev1';			% Again, you can span devices with a cell-array.
+AOChans = 0:1; 				% Numerical row vector.
+DODevice='Dev1';			% Multiple devices with a cell-array (be carefull because digital i/o is implemented differently on dif boards: clocks etc.)
+DOChans='line2';            % (use = 'line2:n')The arguments for API digital channel creation are one string if one daq board is used or a cell-array if multiple boards, this is unlike analog.
+DOChanCount=1;              % You must specify how many digital channels you want (see note just above for my reasoning).
+useCam=true;				% Boolean for toggling frame triggereing on a connected camera. If true, a counter task (counter1 by default) will be created at the frame rate of choice.
+camFrameRate=500;			% Rate you want to drive your camera at.
 
-% writeDigitalData(task, writeData, timeout, autoStart, numSampsPerChan)
+sampleRate = 50000;		% In Hz applies to all tasks for now, but you could (theoretically) create a rate for each task.
+acqTime=10;					% Total acquisition time for a trial.
+numTrials=1;				% Number of times your configured tasks will repeat. This works, but each run has to be triggered.
+interTrialInterval=0;		% Dead-time in between trials, if you want any. Since I have to trigger each trial, this might be redundant.
 
-sampleRate = 27850; %Hz
-acqTime=10;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Waveform Configureation (again I'd like to move this elsewhere)
+% Note: This is set up to take the arguments needed for pulse train, or ramp construction.  Analog and digital are configured seperatly. 
 
-%% Shit that I will move elsewhere
-%%%%% Temporary home for values needed to make output trains.
-%%% Place the argument value you want for each analog output channel.
-trainTypes=[1 2]; % 1 for pulses, 2 for ramp
-trainAmplitudes=[5 7];
-rampSpeeds=[0 3.5];
-baselineTimes=[3 5];
-numTrains=[1 1];
-interTrainInterval=[1 1];
-baselineValues=[0 0];
-pulseWidths=[.010 0];
-numPulses=[10 0];
-pulseInterval=[.025 0];
-syncError=0;
+% Analog Out
+% assignments are row-vectors that are assumed to go in order of the specified channels 
+% if an argument doesn't apply, like ramp-speed for pulse trains, just put a zero in (not ideal) Pulser will sort it out.
+% Amplitudes in Volts and Times in Seconds.
+trainTypes=[1 2];			% 1 for pulse-train, 2 for ramp
+trainAmplitudes=[5 7];		% Peak amplitude your output will reach. Pulse height, ramp peak etc. (In Volts)		
+rampSpeeds=[0 3.5];			% Speed (V/sec) at which your ramp will climb from baseline to peak.
+baselineValues=[0 0];		% Baseline from which to operate around. Note you can have a dc input by calling a pulse train of any type with no amplitude.
+baselineTimes=[3 5];		% Time to hold at baseline before any patterned output starts.
+numTrains=[1 1];			% How many times do you want your train or ramp to repeat?
+interTrainInterval=[1 1];	% Time between train (or ramp, or whatever) repetitions.
+pulseWidths=[.010 0];		% How wide should your pulses be? (in seconds)
+numPulses=[10 0];			% How many pulses in a given repetition will you give?
+pulseInterval=[.025 0];		% How much time in between your pulses.  TODO: I should have a toggle that lets the user put this is rate or time.
+
+% Digital Out
+% assignments are row-vectors that are assumed to go in order of the specified channels 
+% pulses only of course (and amplitude is always 1 or 5)
+% Amplitudes in Volts and Times in Seconds.	
+stepDigValue=[1];			% Equivalent to analog's amplitude (do you want your trains to be high=1 or low=0?)
+baselineDigValues=[0];		% Can only be 0 or 5. I trust the user won't mess that up here, but will enforce in GUI.
+baselineDigTimes=[3];		% Time to hold at baseline before any patterned output starts.
+numDigTrains=[1];			% How many times do you want your train or ramp to repeat?
+interDigTrainInterval=[1];	% Time between train (or ramp, or whatever) repetitions.
+pulseDigWidths=[.010];		% How wide should your pulses be? (in seconds)
+numDigPulses=[10];			% How many pulses in a given repetition will you give?
+pulseDigInterval=[.025];	% How much time in between your pulses.  TODO: I should have a toggle that lets the user put this is rate or time.		
 %%%%%%%%%%%%%%%%%%%%%%
 
-%% Pulser Function
-%
-%% Creates analog output trains, and configures input/output.
+
+%% Create Tasks
 import dabs.ni.daqmx.*
 
-pTrigger = Task('Trigger Task');
-pTrigger.createDOChan('Dev1','line6');
+%%%%% Set up and queue tasks
+% I've set everything to 'queue' before a rising-edge trigger on PFI0. Matlab can not execute the tasks simultaneously, so a trigger is the only way to sync up the i/o.  To do this everything is clocked to counter0, which is triggered by rising-edge of PFI0.  TODO: create software input to PFI0 and toggle in GUI.
 
-%%%%% Set up the tasks. 
-pInputTask = Task('pulser in');
-pOutputTask = Task('pulser out');
-pDigOutputTask = Task('pulser digout');
-
-
-%%%%% Construct Output Data
-% Each Column Will Be A Channel
-aOutData=zeros(sampleRate*acqTime,numel(AOChan));
-
-% Now construct pulse trains and ramps seperatley.
-for i=1:numel(AOChan),
-    if trainTypes(i)==1,
-        aOutData(:,i)=pulser_pulses(trainAmplitudes(i),pulseWidths(i),numPulses(i),pulseInterval(i),baselineTimes(i)+syncError,baselineValues(i),numTrains(i),interTrainInterval(i),sampleRate,acqTime);
-        dOutData(:,i)=pulser_pulses(1,pulseWidths(i),numPulses(i),pulseInterval(i),baselineTimes(i),baselineValues(i)+syncError,numTrains(i),interTrainInterval(i),sampleRate,acqTime);
-    elseif trainTypes(i)==2,
-        aOutData(:,i)=pulser_ramp(trainAmplitudes(i),rampSpeeds(i),baselineTimes(i),baselineValues(i),numTrains(i),interTrainInterval(i),sampleRate,acqTime);
-    end
-end
-
-
-outData=zeros(sampleRate*acqTime,1);
-
-%Counter
+% Note: I'm not looping trials for now, but it will require a trigger to
+% advance each.
+for k=1:numTrials,  % I don't wan't to indent the program, so I'll point out the closers at the end for the 'main loop'
+%Counter For Timing (no catch, because it should always go if this
+%function runs)
 pCntrTask=Task('Counter Task');
 pCntrTask.createCOPulseChanFreq(DODevice,0,'',sampleRate); 
 pCntrTask.cfgImplicitTiming('DAQmx_Val_ContSamps',acqTime*sampleRate);
 pCntrTask.cfgDigEdgeStartTrig('PFI0');
 pCntrTask.start();
 
-% Analog Input
-pInputTask.createAIVoltageChan(AIDevice,AIChans);
-%pInputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps');
-pInputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
-%pInputTask.cfgAnlgEdgeStartTrig('PFI0');
+%Counter For Camera  (TODO: somthing wrong)
+if useCam==1,
+    pCamTask=Task('Camera Task');
+    pCamTask.createCOPulseChanFreq(DODevice,1,'',camFrameRate); 
+    pCamTask.cfgImplicitTiming('DAQmx_Val_ContSamps',acqTime*sampleRate);
+    pCamTask.cfgDigEdgeStartTrig('PFI0');
+    pCamTask.start();
+else
+end
 
 % Analog Output
-pOutputTask.createAOVoltageChan(AODevice,AOChan);
-% pOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps');
-pOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
-pOutputTask.cfgDigEdgeStartTrig('PFI0');
+if numel(AIChans) > 0,
+    pOutputTask = Task('pulser out');
+    pOutputTask.createAOVoltageChan(AODevice,AOChans);
+    pOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
+    pOutputTask.cfgDigEdgeStartTrig('PFI0');  %This may not be needed, because the clock is triggered.'
+	
+	% Now construct pulse trains and ramps seperatley for analog output. This will be expanded for different types (noise etc.)
+	% Pre-Allocate output vectors (because it's Matlab)
+	% Each column represents a channel.
+	aOutWrte=zeros(sampleRate*acqTime,numel(AOChans));
+	for i=1:numel(AOChans),
+	    if trainTypes(i)==1,
+	        aOutWrte(:,i)=pulser_pulses(trainAmplitudes(i),pulseWidths(i),numPulses(i),pulseInterval(i),baselineTimes(i),baselineValues(i),numTrains(i),interTrainInterval(i),sampleRate,acqTime);
+	    elseif trainTypes(i)==2,
+	        aOutWrte(:,i)=pulser_ramp(trainAmplitudes(i),rampSpeeds(i),baselineTimes(i),baselineValues(i),numTrains(i),interTrainInterval(i),sampleRate,acqTime);
+	    end
+	end
+	pOutputTask.writeAnalogData(aOutWrte,inf,true);
+	aOutFlag=1;
+else
+	aOutFlag=0;
+end
 
 % Digital Output
-pDigOutputTask.createDOChan(DODevice,DOChans);
-%pDigOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps');
-pDigOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
-% pDigOutputTask.cfgDigEdgeStartTrig('PFI0');  % Digital trig not supported
-% (it seems), no worries the counter is triggered.
+if DOChanCount > 0,
+    pDigOutputTask = Task('pulser digout');
+    pDigOutputTask.createDOChan(DODevice,DOChans);
+    pDigOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
+	% Now contruct digital outputs
+	% these are always pulse trains (I will support unbuffered 'toggles' soon, but they will be configured differently).
+	% Pre-Allocate output vectors (because it's Matlab)
+	% Each column represents a channel.
+	dOutWrte=zeros(sampleRate*acqTime,numel(DOChans));
+	for i=1:DOChanCount,
+		dOutWrte(:,i)=pulser_pulses(stepDigValue(i),pulseDigWidths(i),numDigPulses(i),pulseDigInterval(i),baselineDigTimes(i),baselineDigValues(i),numDigTrains(i),interDigTrainInterval(i),sampleRate,acqTime);
+	end
+	pDigOutputTask.writeDigitalData(dOutWrte,inf,true);
+	digOutFlag=1;
+else
+	digOutFlag=0;
+end
 
-% pInputTask.cfgAnlgEdgeStartTrig('PFI0',3,'DAQmx_Val_Rising');
-% pOutputTask.cfgAnlgEdgeStartTrig('PFI0',3,'DAQmx_Val_Rising');
-% pDigOutputTask.cfgAnlgEdgeStartTrig('PFI0',3,'DAQmx_Val_Rising');
 
+% Analog Input  (The outputs have to be higher than me on the 'stack'!)
+if numel(AIChans) > 0,
+    pInputTask = Task('pulser in');
+    pInputTask.createAIVoltageChan(AIDevice,AIChans);
+    pInputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
+	outData=pInputTask.readAnalogData(acqTime*sampleRate,'scaled',inf);
+	aInFlag=1;
+else
+	aInFlag=0;
+end
+
+% Maybe I should just query the task map instead of this flag non-sense?
+pCntrTask.clear();
+if aInFlag,
+	pInputTask.clear();
+else
+end
+if aOutFlag,
+	pOutputTask.clear();
+else
+end
+if digOutFlag,
+	pDigOutputTask.clear();
+else
+end
+if useCam==1,
+	pCamTask.clear();
+else
+end
+pause(interTrialInterval);  % For the main loop
+end							% Also, for the main loop.
+
+
+% Place holder until I implement a a way to do this simultaneously:
 %% ----- Optical Encoders  (optical mouse chips connected to arduinos; dx and dys are streamed over serial)
-%
+%  I need to rig up a way for this to execute at the same time the tasks do
+%  (PFI0 trigger)
 
 % encoderToggle=1;
 % encoderCount=1;
@@ -106,21 +173,3 @@ pDigOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqT
 %     end
 % else
 % end
-
-%% GO 
-
-%(Either the output is a couple of ms early because of matlab execution delays (but they both finish at the same time) or the cpu timing is crudy, using a self trigger would be a good test.
-
-tic
-pTrigger.writeDigitalData(logical([zeros(1,.002*sampleRate);ones(1,.002*sampleRate);zeros(1,.002*sampleRate)]),inf,true); 
-pDigOutputTask.writeDigitalData(dOutData,inf,true);
-pOutputTask.writeAnalogData(aOutData,inf,true);
-outData=pInputTask.readAnalogData(acqTime*sampleRate,'scaled',inf);
-pTrigger.writeDigitalData(logical([0;1;0]),inf,true); 
-
-
-pInputTask.clear();
-pOutputTask.clear();
-pDigOutputTask.clear();
-pCntrTask.clear();
-pTrigger.clear();

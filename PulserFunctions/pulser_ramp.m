@@ -20,15 +20,14 @@ pulseTrain=[rampValues baselineValue]';
 % inter-train interval, then we replicate it n-times and shave off the last
 % set of zeros.
 if numReps > 1
-    pulseTrain=padarray(pulseTrain,interTrainInterval/dt,baselineValue,'post');
+    pulseTrain=padarray(pulseTrain,ceil(interTrainInterval/dt),baselineValue,'post');
     pulseTrain=repmat(pulseTrain,numReps,1); 
     pulseTrain=pulseTrain(1:length(pulseTrain)-interTrainInterval/dt);
 else
 end
 
 % Lastly we need to add the baseline by padding ramp's begining and end with the baseline values for a length determined by the desired acquisition time.
-%TODO: Ceil call -- really?
 pulseTrain=padarray(pulseTrain,ceil(baselineTime/dt),baselineValue,'pre');
-pulseTrain=padarray(pulseTrain,(acquisitionTime/dt)-length(pulseTrain),baselineValue,'post');
+pulseTrain=padarray(pulseTrain,ceil((acquisitionTime/dt)-length(pulseTrain)),baselineValue,'post');
 
 out = pulseTrain;
