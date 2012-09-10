@@ -1,6 +1,6 @@
 function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,baselineTime,baselineValue,numReps,interTrainInterval,sRate,acquisitionTime)
 
-% Pulser Pulse 'Class'
+% Pulser Pulse (or Pulse Train) 'Class'
 % 
 % Started by Chris Deister 8/24/2012
 % 9/3/2004 - rounded all padarray calls that divide by dt, because sample rates that were multiples of 5 were causing errors.

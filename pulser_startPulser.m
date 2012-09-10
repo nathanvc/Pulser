@@ -12,9 +12,9 @@ DODevice='Dev1';			% Multiple devices with a cell-array (be carefull because dig
 DOChans='line2';            % (use = 'line2:n')The arguments for API digital channel creation are one string if one daq board is used or a cell-array if multiple boards, this is unlike analog.
 DOChanCount=1;              % You must specify how many digital channels you want (see note just above for my reasoning).
 useCam=true;				% Boolean for toggling frame triggereing on a connected camera. If true, a counter task (counter1 by default) will be created at the frame rate of choice.
-camFrameRate=500;			% Rate you want to drive your camera at.
+camFrameRate=10;			% Rate you want to drive your camera at.
 
-sampleRate = 50000;		% In Hz applies to all tasks for now, but you could (theoretically) create a rate for each task.
+sampleRate = 50000;         % In Hz applies to all tasks for now, but you could (theoretically) create a rate for each task.
 acqTime=10;					% Total acquisition time for a trial.
 numTrials=1;				% Number of times your configured tasks will repeat. This works, but each run has to be triggered.
 interTrialInterval=0;		% Dead-time in between trials, if you want any. Since I have to trigger each trial, this might be redundant.
@@ -32,7 +32,7 @@ rampSpeeds=[0 3.5];			% Speed (V/sec) at which your ramp will climb from baselin
 baselineValues=[0 0];		% Baseline from which to operate around. Note you can have a dc input by calling a pulse train of any type with no amplitude.
 baselineTimes=[3 5];		% Time to hold at baseline before any patterned output starts.
 numTrains=[1 1];			% How many times do you want your train or ramp to repeat?
-interTrainInterval=[1 1];	% Time between train (or ramp, or whatever) repetitions.
+interTrainInterval=[10 10];	% Time between train (or ramp, or whatever) repetitions.
 pulseWidths=[.010 0];		% How wide should your pulses be? (in seconds)
 numPulses=[10 0];			% How many pulses in a given repetition will you give?
 pulseInterval=[.025 0];		% How much time in between your pulses.  TODO: I should have a toggle that lets the user put this is rate or time.
@@ -45,11 +45,15 @@ stepDigValue=[1];			% Equivalent to analog's amplitude (do you want your trains 
 baselineDigValues=[0];		% Can only be 0 or 5. I trust the user won't mess that up here, but will enforce in GUI.
 baselineDigTimes=[3];		% Time to hold at baseline before any patterned output starts.
 numDigTrains=[1];			% How many times do you want your train or ramp to repeat?
-interDigTrainInterval=[1];	% Time between train (or ramp, or whatever) repetitions.
+interDigTrainInterval=[10];	% Time between train (or ramp, or whatever) repetitions.
 pulseDigWidths=[.010];		% How wide should your pulses be? (in seconds)
 numDigPulses=[10];			% How many pulses in a given repetition will you give?
 pulseDigInterval=[.025];	% How much time in between your pulses.  TODO: I should have a toggle that lets the user put this is rate or time.		
 %%%%%%%%%%%%%%%%%%%%%%
+shutterLines=[7 6];
+shutterPause=1;  %Time to wait (in sec) after toggling shutters. I didn't see a scenario have multiples, one will always rate limit - right?
+shutterToggles=[1 1];  %What to write 1: High 0: Low
+shutterDevice='dev1';
 
 
 %% Create Tasks
@@ -61,15 +65,29 @@ import dabs.ni.daqmx.*
 % Note: I'm not looping trials for now, but it will require a trigger to
 % advance each.
 for k=1:numTrials,  % I don't wan't to indent the program, so I'll point out the closers at the end for the 'main loop'
-%Counter For Timing (no catch, because it should always go if this
-%function runs)
+    
+% Toggle Shutters Etc. (Non-buffered Digital I/O. Straight From Meng Demo)
+if numel(shutterLines) > 1,
+    pShutterTask = dabs.ni.daqmx.Task.empty();
+    for i=1:numel(shutterLines),
+        pShutterTask(i) = dabs.ni.daqmx.Task(sprintf('Shutter %d Control',i));
+        pShutterTask(i).createDOChan(shutterDevice,sprintf('line%d',shutterLines(i)));
+        pShutterTask(i).writeDigitalData(shutterToggles(i));
+    end
+    shutterFlag=1;
+    pause(shutterPause)
+else
+    shutterFlag=0;
+end
+
+%Counter For Timing Tasks
 pCntrTask=Task('Counter Task');
 pCntrTask.createCOPulseChanFreq(DODevice,0,'',sampleRate); 
 pCntrTask.cfgImplicitTiming('DAQmx_Val_ContSamps',acqTime*sampleRate);
 pCntrTask.cfgDigEdgeStartTrig('PFI0');
 pCntrTask.start();
 
-%Counter For Camera  (TODO: somthing wrong)
+%Counter For Camera  (Could be used for something else)
 if useCam==1,
     pCamTask=Task('Camera Task');
     pCamTask.createCOPulseChanFreq(DODevice,1,'',camFrameRate); 
@@ -80,13 +98,13 @@ else
 end
 
 % Analog Output
-if numel(AIChans) > 0,
+if numel(AOChans) > 0,
     pOutputTask = Task('pulser out');
     pOutputTask.createAOVoltageChan(AODevice,AOChans);
     pOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
-    pOutputTask.cfgDigEdgeStartTrig('PFI0');  %This may not be needed, because the clock is triggered.'
-	
-	% Now construct pulse trains and ramps seperatley for analog output. This will be expanded for different types (noise etc.)
+    % pOutputTask.set('writeRegenMode','DAQmx_Val_AllowRegen');
+    
+    % Now construct pulse trains and ramps seperatley for analog output. This will be expanded for different types (noise etc.)
 	% Pre-Allocate output vectors (because it's Matlab)
 	% Each column represents a channel.
 	aOutWrte=zeros(sampleRate*acqTime,numel(AOChans));
@@ -103,12 +121,14 @@ else
 	aOutFlag=0;
 end
 
-% Digital Output
+% Digital Output (Buffered)
 if DOChanCount > 0,
     pDigOutputTask = Task('pulser digout');
     pDigOutputTask.createDOChan(DODevice,DOChans);
     pDigOutputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
-	% Now contruct digital outputs
+    % pDigOutputTask.set('writeRegenMode','DAQmx_Val_AllowRegen');
+	
+    % Now contruct digital outputs
 	% these are always pulse trains (I will support unbuffered 'toggles' soon, but they will be configured differently).
 	% Pre-Allocate output vectors (because it's Matlab)
 	% Each column represents a channel.
@@ -122,20 +142,29 @@ else
 	digOutFlag=0;
 end
 
-
 % Analog Input  (The outputs have to be higher than me on the 'stack'!)
 if numel(AIChans) > 0,
     pInputTask = Task('pulser in');
     pInputTask.createAIVoltageChan(AIDevice,AIChans);
     pInputTask.cfgSampClkTiming(sampleRate,'DAQmx_Val_ContSamps',sampleRate*acqTime,'Ctr0InternalOutput');
+    % pInputTask.cfgDigEdgeStartTrig('PFI0');  %Not needed becuse the clock
+    % is triggered.
 	outData=pInputTask.readAnalogData(acqTime*sampleRate,'scaled',inf);
 	aInFlag=1;
 else
 	aInFlag=0;
 end
 
+
 % Maybe I should just query the task map instead of this flag non-sense?
 pCntrTask.clear();
+if shutterFlag,   %Toggle shutters back before a new run or exit. It would be wise to give user control of this. 
+    for i=1:numel(shutterLines),
+        pShutterTask(i).writeDigitalData(abs(shutterToggles(i)-1));  % This was to toggle back without another paramater. abs(0-1)=1 and abs(1-1)=0
+    end
+    pShutterTask.clear();
+else
+end
 if aInFlag,
 	pInputTask.clear();
 else
