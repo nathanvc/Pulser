@@ -5,7 +5,7 @@ function out = pulser_opticalEncoder(trialLength,serialPort,baudRate)
 % Chris Deister 8/28/2012
 %
 % Streams dx and dy from an optical mouse sensor/arduino combo (the arduino prints to serial).
-% Modified from RobotGrrl's Arduino2Serial example
+% based on RobotGrrl's Arduino2Serial example
 
 
 numSec=trialLength;

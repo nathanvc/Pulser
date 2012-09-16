@@ -9,8 +9,8 @@ function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,b
 dt=1/sRate;
 
 % Preallocate (I figure this is useful, but is it?)
-%totalSamplesInTrain=interPulseInterval*numPulses/dt;
-%pulseTrain=zeros(totalSamplesInTrain,1);
+% totalSamplesInTrain=interPulseInterval*numPulses/dt;
+% pulseTrain=zeros(totalSamplesInTrain,1);
 	
 if numPulses > 0
     for k=0:numPulses-1,
