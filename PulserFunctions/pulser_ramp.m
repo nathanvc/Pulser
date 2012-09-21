@@ -20,7 +20,7 @@ pulseTrain=[rampValues baselineValue]';
 % inter-train interval, then we replicate it n-times and shave off the last
 % set of zeros.
 if numReps > 1
-    pulseTrain=padarray(pulseTrain,interTrainInterval/dt,baselineValue,'post');
+    pulseTrain=padarray(pulseTrain,ceil(interTrainInterval/dt),baselineValue,'post');
     pulseTrain=repmat(pulseTrain,numReps,1); 
     pulseTrain=pulseTrain(1:length(pulseTrain)-interTrainInterval/dt);
 else

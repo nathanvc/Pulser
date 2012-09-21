@@ -1,12 +1,14 @@
-function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseInterval,baselineTime,baselineValue,numReps,interTrainInterval,sRate,acquisitionTime)
+function out = pulser_pulses(amplitude,pulseWidth,numPulses,interPulseFrequency,baselineTime,baselineValue,numReps,interTrainInterval,sRate,acquisitionTime)
 
-% Pulser Pulse 'Class'
+% Pulser Pulse (or Pulse Train) 'Class'
 % 
-% Chris Deister 8/24/2012
-%
+% Started by Chris Deister 8/24/2012
+% 9/3/2004 - rounded all padarray calls that divide by dt, because sample rates that were multiples of 5 were causing errors.
 
 % --- Create Train
 dt=1/sRate;
+interPulseInterval=1/interPulseFrequency;
+
 
 % Preallocate (I figure this is useful, but is it?)
 %totalSamplesInTrain=interPulseInterval*numPulses/dt;
@@ -21,7 +23,7 @@ end
 % inter-train interval, then we replicate it n-times and shave off the last
 % set of zeros.
 if numReps > 1
-    pulseTrain=padarray(pulseTrain',interTrainInterval/dt,baselineValue,'post');
+    pulseTrain=padarray(pulseTrain',ceil(interTrainInterval/dt),baselineValue,'post');
     pulseTrain=repmat(pulseTrain,numReps,1); 
     pulseTrain=pulseTrain(1:length(pulseTrain)-interTrainInterval/dt);
 else
