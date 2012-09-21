@@ -1,8 +1,8 @@
 function session=pulser_sessionConstructor(session_configuration)
 %
 % Start a Pulser session.
-% Takes a pre-loaded configuration as an argument (I use pulserConfig).
-% Returns a nidaq session (named whatever you like, I suggest pulserSession).
+% Takes a pre-loaded configuration as an argument (I use pulser.).
+% Returns a nidaq session (named whatever you like, I suggest pulser.daqSession).
 %
 % CAD 9/16/2012
 
